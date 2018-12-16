@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+echo "Running shell script linting"
+shellcheck ./scripts/*.sh

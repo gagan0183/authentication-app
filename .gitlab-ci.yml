@@ -1,0 +1,47 @@
+stages:
+  - test
+  - deploy-staging
+  - deploy-production
+
+
+bashlint:
+  stage: test
+  image: koalaman/shellcheck-alpine
+  script:
+    - shellcheck ./scripts/*.sh
+    - shellcheck ./scripts/githooks/pre-commit
+
+deploy-staging:
+  image: docker:stable
+  stage: deploy-staging
+  dependencies: []
+  variables:
+    IMAGE_VERSION : "0.1.0_$CI_PIPELINE_ID"
+  script:
+    - docker login --username=${HEROKU_ACCOUNT_EMAIL} --password=${HEROKU_API_KEY} registry.heroku.com
+    - export DOCKER_REPO="${HEROKU_REGISTRY_IMAGE}/${HEROKU_STAGING_APP}/web" && echo $DOCKER_REPO
+    - docker build -t ${DOCKER_REPO} .
+    - docker push ${DOCKER_REPO}
+    - docker run --rm -e HEROKU_API_KEY=${HEROKU_API_KEY} wingrunr21/alpine-heroku-cli  container:release web --app=${HEROKU_STAGING_APP}
+  services:
+    - docker:dind
+  tags:
+    - docker
+
+deploy-production:
+  image: docker:stable
+  stage: deploy-production
+  dependencies: []
+  script:
+    - docker login --username=${HEROKU_ACCOUNT_EMAIL} --password=${HEROKU_API_KEY} registry.heroku.com
+    - export DOCKER_REPO="${HEROKU_REGISTRY_IMAGE}/${HEROKU_PRODUCTION_APP}/web" && echo $DOCKER_REPO
+    - docker build -t ${DOCKER_REPO} .
+    - docker push ${DOCKER_REPO}
+    - docker run --rm -e HEROKU_API_KEY=${HEROKU_API_KEY} wingrunr21/alpine-heroku-cli  container:release web --app=${HEROKU_PRODUCTION_APP}
+  services:
+    - docker:dind
+  tags:
+    - docker
+  only:
+    - master
+
